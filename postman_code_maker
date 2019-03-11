@@ -1,0 +1,111 @@
+'''
+工具名：postman测试代码自动生成
+
+注意：（使用指南）
+1.bairong，exdata，inparam这三个传入字段中的特征名需要自己写入列表中（不写入不能知道要用啥变量）
+2.传入文件的列名需要时英文列名，尤其是id，cell，user_date
+3.scoreType中的模型名称和版本号要改成自己的
+4.传入文件的user_date列的数据格式需要时yyyy-mm-dd格式或者是yyyy/mm/dd格式
+5.传入文件的格式需要是csv格式的
+
+'''
+import pandas as pd
+import re
+need_bairong_feature = ["als_m12_id_nbank_else_orgnum","flag_specialList_c","ir_id_x_cell_lastchg_days",
+                "pc_long_income","pc_lst_mons","flag_applyloanstr","flag_inforelation",
+                "flag_personalcre","ns_mobile_buy","flag_netshopping","stab_mail_num",
+                "flag_stability_c","pc_rcnt_income","cons_tot_m12_p_catenum","location_long_trans_index",
+                "als_m12_id_nbank_orgnum","flag_location","flag_consumption_c"]#这里填需要用到百融的字段
+need_exdata_feature = ["id","cell","user_date"]#这里填需要用到的字段
+need_exdata_inparam = ["id","cell","user_date"]#这里填需要用到的字段
+scoreType = str('[{\\"score\\":\\"scoreautoleaszyc\\",\\"api\\":\\"S1_0\\"}]')
+#下面是模型基本信息，请把需要改的地方改了
+all_out_string = '"brData":"{brData}",' \
+                  '"extraData":"{extraData}",' \
+                  '"inparam":"{inparam}",' \
+                  '"strategyType":null,' \
+                  '"pointType":"scoreautofin",' \
+                  '"scoreData":"2",' \
+                  '"scoreBaseMealId":null,' \
+                  '"swiftNumber":"",' \
+                  '"scoreType":"{scoreType}",' \
+                  '"apiCode":"4000050"'
+
+input_path = r"C:\Users\Bai'rong\Desktop\神州优车_信用模型_测试数据csv.csv"#这里写测试数据的文件路径
+
+output_path = r"C:\Users\Bai'rong\Desktop\output_path.txt"
+out_f=open(output_path,"a+")       # 以追加的方式
+
+
+
+
+try:
+    file= pd.read_csv(input_path,encoding="utf-8",engine='python')
+except UnicodeDecodeError:
+    file = pd.read_csv(input_path, encoding="gbk",engine='python')
+
+hangshu = file.iloc[:,0].size #获取测试数据的条数
+all_key = list(file.columns)
+def get_dataframe_str(input_str):
+    #这个函数将传入的普通字典字符串格式化成postman需要的格式
+    temp_list = [m.start() for m in re.finditer("'", input_str)]
+    str_list = list(input_str)
+    temp_count = 0
+    for temp_index in temp_list:
+        temp1 = temp_index + temp_count
+        str_list.insert(temp1, '\\')
+        temp_count += 1
+
+    output_str = "".join(str_list)
+    output_str = output_str
+    return output_str
+
+for i in range(0,50):#括号里面的第二个数字用于控制生成多少条，改成hangshu则全部生成
+    this_value = list(file.loc[i])#取得一行数据的值
+    this_dict = dict(zip(all_key,this_value))#生成整行数据的字典
+    bairong_dict = {}
+    for temp1 in need_bairong_feature:
+        try:#将可以转换为int的值先转换一下防止出现浮点类型的值
+            bairong_dict[temp1] = str(int(this_dict[temp1]))
+        except ValueError:
+            bairong_dict[temp1] = str(this_dict[temp1])
+
+    bairong_str = str(bairong_dict)#将用到字段的字典转换成字符串格式
+    bairong_str = get_dataframe_str(bairong_str)#格式化字符串
+    exdata_dict = {}
+    for temp2 in need_exdata_feature:
+        try:
+            exdata_dict[temp2] = str(int(this_dict[temp2]))
+        except ValueError:
+            exdata_dict[temp2] = str(this_dict[temp2])
+    exdata_str = str(exdata_dict)
+    exdata_str = get_dataframe_str(exdata_str)
+    inparam_dict = {}
+    for temp3 in need_exdata_inparam:
+        try:
+            inparam_dict[temp3] = str(int(this_dict[temp3]))
+        except ValueError:
+            inparam_dict[temp3] = str(this_dict[temp3])
+    inparam_str = str(inparam_dict)
+    inparam_str = get_dataframe_str(inparam_str)
+    result_str = '{'+all_out_string.format(brData = bairong_str,extraData = exdata_str,inparam = inparam_str,scoreType = scoreType)+'}'
+    print("*******************")
+    print(i)#输出数据序列
+    #print(this_dict["score_cs"])#如果想输出每一条数据的sas得分 将注释取消掉并将列名score_cs换成自己的得分那一列列名
+    print(result_str.replace("'",'"'))
+    out_f.write(str(i))
+    out_f.write("\n")
+    # out_f.write(this_dict["score_cs"])#如果想输出每一条数据的sas得分 将注释取消掉并将列名score_cs换成自己的得分那一列列名
+    out_f.write("\n")
+    out_f.write(result_str.replace("'",'"'))
+    out_f.write("\n")
+    out_f.write("*******************")
+    out_f.write("\n")
+out_f.close()
+
+
+
+
+
+# all_test_data = test_string_raw.format("xixi123")
+# print(all_test_data)
